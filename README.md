@@ -23,6 +23,9 @@ scripts = ['pip', 'pip-python', 'python-pip']
 data = ['/usr/share/doc/python-pip-1.3.1']
 ```
 
+NOTE: If you want to include python modules in `purelib`, please make sure
+that the suffix of their names is `.py`.
+
 After this, you can call `sync_dist` function in a python file. By default,
 this function search  distribution files with the following variables. If
 the specified distribute has different configurations as the default ones,
