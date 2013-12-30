@@ -81,6 +81,9 @@ def sync_dist(target, dist_name, dist_version, **dist_attrs):
         os.makedirs(target)
 
     for dist_file in filter(os.path.isfile, dist_files):
+        if dist_file.endswith('.pyc') or \
+           dist_file.endswith('.pyo'):
+            continue
         copy_file = change_root(target, dist_file)
         copy_file_or_dir(dist_file, copy_file, force=True)
 
