@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 
 from distutils.util import subst_vars
 from distutils.command.install import INSTALL_SCHEMES, SCHEME_KEYS
@@ -43,13 +44,6 @@ def _gen_freeze_scheme():
 FREEZE_SCHEME = _gen_freeze_scheme()
 
 
-def _get_egg_name(dist_name, dist_version):
-    """ Return the name of egg information file.
-    """
-    return "%s-%s-py%s.egg-info" % \
-           (dist_name, dist_version, get_py_version()[:3])
-
-
 def walk_tree(top):
     """ List the whole directory tree down from the top.
     """
@@ -80,21 +74,47 @@ def _verify_prefix(prefix, files):
         return True
 
 
-def locate_dist_section(section, dist_meta, **attrs):
+def locate_dist_section(section, dist_meta):
     """ Find and return the location of the specified section.
     """
+    def purelib_path_gen():
+        paths = FREEZE_SCHEME['purelib']
+        paths.extend(sys.path)
+        return paths
+
+    def platlib_path_gen():
+        # TODO: more available paths
+        paths = FREEZE_SCHEME['platlib']
+        return paths
+
+    def headers_path_gen():
+        # TODO: more available paths
+        paths = FREEZE_SCHEME['headers']
+        return paths
+
+    def scripts_path_gen():
+        paths = FREEZE_SCHEME['scripts']
+        if os.environ.has_key('PATH'):
+            paths.extend(os.environ['PATH'].split(":"))
+        if os.environ.has_key('HOME'):
+            paths.append(os.path.join(os.environ['HOME'], 'bin'))
+        return paths
+
+    def data_path_gen():
+        # TODO: more available paths
+        paths = FREEZE_SCHEME['data']
+        return paths
+
+
     if section not in SCHEME_KEYS:
         raise LocationError("illegal section name '%s'." % section)
 
-    pathvar = dist_meta['%s_path' % section]
-    pathgen = attrs.get('%s_path_gen' % section, None)
-
+    pathvar = dist_meta.get('%s_path' % section, None)
     if pathvar:
         paths = [pathvar]
-    elif pathgen:
-        paths = pathgen()
     else:
-        paths = FREEZE_SCHEME[section]
+        pathgen = locals()['%s_path_gen' % section]
+        paths = pathgen()
 
     for prefix in paths:
         prefix = _expand_prefix(prefix, dist_meta)
@@ -105,10 +125,10 @@ def locate_dist_section(section, dist_meta, **attrs):
         raise LocationError("cann't locate section '%s'." % section)
 
 
-def freeze_dist_section(section, dist_meta, **attrs):
+def freeze_dist_section(section, dist_meta):
     """ List all files belong to the specified section.
     """
-    location = locate_dist_section(section, dist_meta, **attrs)
+    location = locate_dist_section(section, dist_meta)
 
     outfiles = []
     for f in dist_meta.get(section, []):
@@ -140,9 +160,5 @@ def freeze_distribution(dist_name, dist_version, **attrs):
         location, outfiles = freeze_dist_section(key, dist_meta)
         dist_files.extend(outfiles)
         dist_scheme[key] = location
-
-    egg_name = _get_egg_name(dist_name, dist_version)
-    egg_path = os.path.join(dist_scheme['purelib'], egg_name)
-    dist_files.extend(walk_tree(egg_path))
 
     return dist_scheme, dist_files
